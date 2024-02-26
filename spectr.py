@@ -1,16 +1,7 @@
 import csv
-import os
-
-folder_name = input('Enter folder name: ') + '/'
-
-if len(folder_name) > 1:
-    files_list = os.listdir(folder_name)
-else:
-    files_list = os.listdir()
-
-
-data = []
-empty = True
+from tkinter import *
+from tkinter import ttk
+from tkinter import filedialog
 
 
 def decimal_to_float(dec_num):
@@ -32,57 +23,78 @@ def im_re_Z_to_sigma(re_Z, im_Z):
     return sigma
 
 
-for file_name in files_list:
+def open_file():
+    global data
+    filepath = filedialog.askopenfilename()
+    print(filepath)
+    if filepath != "":
+        with open(filepath, "r") as file:
+            text = file.read()
+            text_editor.delete("1.0", END)
+            text_editor.insert(END, text)
 
-    if file_name[-7:] != 'new.dat' or file_name == 'data_new.csv' or file_name == folder_name + '.csv':
-        continue
+        with open(filepath, "r") as file:
+            rows = file.readlines()
 
-    try:
-        if len(folder_name) > 1:
-            handler = open(folder_name + file_name)
-        else:
-            handler = open(file_name)
-    except:
-        print("Error opening ", file_name)
-        continue
-    print(file_name, "processed")
+            for i in range(len(rows)):
+                data.append([])
+            
+            for i in range(len(rows)):
+                row_list = rows[i].strip().split(';')
+                if 'freq' in row_list[0]:
+                    if len(data[i]) == 0:
+                        data[i].append("freq[Hz]")
+                        data[i].append("Sigma")
+                    continue
 
-    rows = handler.readlines()
+                re_Z = decimal_to_float(point_to_comma(row_list[3]))
+                im_Z = decimal_to_float(point_to_comma(row_list[4]))
+                sigma = im_re_Z_to_sigma(re_Z, im_Z)
 
-    if len(data) > 0:
-        empty = False
-    else:
-        for i in range(len(rows)):
-            data.append([])
+                sigma_excel = str(sigma).replace('.', ',', 1)
 
-    for i in range(len(rows)):
-        row_list = rows[i].strip().split(';')
-        if 'freq' in row_list[0]:
-            if len(data[i]) == 0:
-                data[i].append("freq[Hz]")
-            data[i].append("'"+file_name[7:-8])
-            continue
+                if len(data[i]) == 0:
+                    freq_excel = str(decimal_to_float(
+                        point_to_comma(row_list[0]))).replace('.', ',', 1)
+                    data[i].append(freq_excel)
+                data[i].append(sigma_excel)
 
-        re_Z = decimal_to_float(point_to_comma(row_list[3]))
-        im_Z = decimal_to_float(point_to_comma(row_list[4]))
-        sigma = im_re_Z_to_sigma(re_Z, im_Z)
 
-        sigma_excel = str(sigma).replace('.', ',', 1)
+def save_file():
+    global data
+    filepath = filedialog.asksaveasfilename()
+    if filepath != "":
+        with open(filepath, "w", newline='') as file:
+            writer = csv.writer(file, delimiter=';')
+            writer.writerows(data)
 
-        if len(data[i]) == 0:
-            freq_excel = str(decimal_to_float(
-                point_to_comma(row_list[0]))).replace('.', ',', 1)
-            data[i].append(freq_excel)
-        data[i].append(sigma_excel)
-#        print(data[i])
+        with open(filepath, "r") as file:
+            text = file.read()
 
-#    print(data)
+    text_editor.delete("1.0", END)
+    text_editor.insert(END, text)
 
-if len(folder_name) > 1:
-    new_file = folder_name + folder_name[:-1] + '.csv'
-else:
-    new_file = 'data_new.csv'
 
-with open(new_file, 'w', newline='') as f:
-    writer = csv.writer(f, delimiter=';')
-    writer.writerows(data)
+
+root = Tk()
+root.title("Impedance spectrometry")
+root.geometry('650x450')
+
+def close():
+    root.destroy()
+    root.quit()
+
+text_editor = Text()
+text_editor.grid(row=0, column=0)
+
+data = []
+
+button_open = ttk.Button(root, text="Open and process", command=open_file)
+button_open.grid(row=1, column=0)
+
+button_save = ttk.Button(root, text="Get the spectrum and save .csv", command=save_file)
+button_save.grid(row=2, column=0)
+
+
+root.protocol('WM_DELETE_WINDOW', close)
+root.mainloop()
